@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>iOS Calculator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+   <link rel="manifest" href="manifest.json">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@200;300;400;500;600&display=swap');
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    body {
+      background-color: #000000;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #ffffff;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      margin: 0;
+    }
+
+    /* iOS App Launch Splash Screen Animation Overlay */
+    #launchSplash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #000000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      animation: splashFadeOut 0.55s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      animation-delay: 0.45s;
+    }
+
+    .launch-app-icon {
+      width: 96px;
+      height: 96px;
+      background: linear-gradient(135deg, #2c2c2e, #1c1c1e);
+      border-radius: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.9);
+      animation: appIconZoom 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    @keyframes splashFadeOut {
+      0% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(1.12);
+        visibility: hidden;
+        pointer-events: none;
+      }
+    }
+
+    @keyframes appIconZoom {
+      0% {
+        transform: scale(0.75);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .calc-container {
+      width: 100%;
+      max-width: 420px;
+      height: 100vh;
+      max-height: 900px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 16px 20px 28px 20px;
+      background-color: #000000;
+      position: relative;
+    }
+
+    /* Top Action Bar */
+    .top-bar {
+      position: absolute;
+      top: 24px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .icon-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background-color: #2c2c2e;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: none;
+      transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1), background-color 0.15s ease;
+    }
+
+    .icon-btn:active, .icon-btn.active-press {
+      transform: scale(0.92);
+      background-color: #4a4a4c;
+    }
+
+    /* Display Area */
+    .display-container {
+      width: 100%;
+      padding: 0 8px;
+      margin-bottom: 12px;
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-end;
+      min-height: 120px;
+      overflow: hidden;
+    }
+
+    .display-text {
+      color: #ffffff;
+      font-weight: 300;
+      white-space: nowrap;
+      line-height: 1.1;
+      letter-spacing: -1px;
+      transition: font-size 0.15s cubic-bezier(0.2, 0, 0, 1);
+      word-break: break-all;
+    }
+
+    /* History / Mode Drawer */
+    .history-drawer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(18, 18, 18, 0.96);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      z-index: 20;
+      transform: translateY(-100%);
+      transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      border-bottom-left-radius: 28px;
+      border-bottom-right-radius: 28px;
+    }
+
+    .history-drawer.open {
+      transform: translateY(0);
+    }
+
+    /* 5x4 Grid Layout */
+    .calc-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      width: 100%;
+    }
+
+    /* iOS Circular Buttons */
+    .calc-btn {
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      border-radius: 50%;
+      border: none;
+      font-size: 32px;
+      font-weight: 400;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      outline: none;
+      position: relative;
+      transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1), background-color 0.2s ease, color 0.2s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .calc-btn:active, .calc-btn.active-press {
+      transform: scale(0.90);
+    }
+
+    /* Top Function Buttons (Backspace, AC, %, +/-) - Mid Gray */
+    .btn-function {
+      background-color: #58585e;
+      color: #ffffff;
+    }
+
+    .btn-function:active, .btn-function.active-press {
+      background-color: #8e8e93;
+    }
+
+    /* Number & Dot Buttons - Dark Gray */
+    .btn-number {
+      background-color: #2c2c2e;
+      color: #ffffff;
+    }
+
+    .btn-number:active, .btn-number.active-press {
+      background-color: #4a4a4c;
+    }
+
+    /* Right Operator Buttons - iOS Orange */
+    .btn-operator {
+      background-color: #ff9f0a;
+      color: #ffffff;
+      font-size: 36px;
+      font-weight: 400;
+    }
+
+    .btn-operator:active, .btn-operator.active-press {
+      background-color: #fca311;
+      filter: brightness(120%);
+    }
+
+    /* Selected Active Operator State (White bg, Orange text) */
+    .btn-operator.selected {
+      background-color: #ffffff !important;
+      color: #ff9f0a !important;
+    }
+
+    /* Scrollable History List */
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .history-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      border-bottom: 1px solid #2c2c2e;
+      padding-bottom: 10px;
+    }
+
+    .history-item .expr {
+      font-size: 16px;
+      color: #8e8e93;
+    }
+
+    .history-item .res {
+      font-size: 28px;
+      color: #ffffff;
+      font-weight: 300;
+    }
+
+    .history-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .history-list::-webkit-scrollbar-thumb {
+      background: #4a4a4c;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- iOS Launch Zoom-in Splash Screen Overlay -->
+  <div id="launchSplash">
+    <div class="launch-app-icon">
+      <span class="text-3xl font-light text-orange-400">0</span>
+    </div>
+  </div>
+
+  <div class="calc-container" id="calcContainer">
+    <!-- Top Bar with Menu & Backspace Trash Button -->
+    <div class="top-bar">
+      <button class="icon-btn" id="menuBtn" title="Calculation History" onclick="toggleHistory()">
+        <i data-lucide="list-filter" class="w-5 h-5"></i>
+      </button>
+      <button class="icon-btn" id="topBackspaceBtn" title="Delete Digit" onclick="handleBackspace()">
+        <i data-lucide="trash-2" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- History Drawer Overlay -->
+    <div class="history-drawer" id="historyDrawer">
+      <div class="flex justify-between items-center pb-2 border-b border-gray-800">
+        <span class="text-lg font-medium text-gray-200">History Log</span>
+        <button class="text-sm text-orange-400 font-medium px-2 py-1" onclick="clearHistory()">Clear All</button>
+      </div>
+      <div class="history-list" id="historyList">
+        <div class="text-center text-gray-500 my-auto text-sm">No calculations yet</div>
+      </div>
+      <button class="w-full py-3 mt-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full font-medium transition" onclick="toggleHistory()">
+        Close
+      </button>
+    </div>
+
+    <!-- Main Result Display -->
+    <div class="display-container" id="displayArea">
+      <div id="display" class="display-text" style="font-size: 72px;">0</div>
+    </div>
+
+    <!-- 5x4 Keypad Grid matching exact requirements -->
+    <div class="calc-grid">
+      <!-- Row 1: [⌫, AC, %, ÷] -->
+      <button class="calc-btn btn-function" data-key="backspace" onclick="handleBackspace()" title="Backspace">
+        <i data-lucide="delete" class="w-7 h-7"></i>
+      </button>
+      <button class="calc-btn btn-function" id="clearBtn" data-key="clear" onclick="handleClear()">AC</button>
+      <button class="calc-btn btn-function" data-key="percent" onclick="handlePercent()">%</button>
+      <button class="calc-btn btn-operator" data-key="/" onclick="handleOperator('/')">÷</button>
+
+      <!-- Row 2: [7, 8, 9, ×] -->
+      <button class="calc-btn btn-number" data-key="7" onclick="handleDigit('7')">7</button>
+      <button class="calc-btn btn-number" data-key="8" onclick="handleDigit('8')">8</button>
+      <button class="calc-btn btn-number" data-key="9" onclick="handleDigit('9')">9</button>
+      <button class="calc-btn btn-operator" data-key="*" onclick="handleOperator('*')">×</button>
+
+      <!-- Row 3: [4, 5, 6, -] -->
+      <button class="calc-btn btn-number" data-key="4" onclick="handleDigit('4')">4</button>
+      <button class="calc-btn btn-number" data-key="5" onclick="handleDigit('5')">5</button>
+      <button class="calc-btn btn-number" data-key="6" onclick="handleDigit('6')">6</button>
+      <button class="calc-btn btn-operator" data-key="-" onclick="handleOperator('-')">−</button>
+
+      <!-- Row 4: [1, 2, 3, +] -->
+      <button class="calc-btn btn-number" data-key="1" onclick="handleDigit('1')">1</button>
+      <button class="calc-btn btn-number" data-key="2" onclick="handleDigit('2')">2</button>
+      <button class="calc-btn btn-number" data-key="3" onclick="handleDigit('3')">3</button>
+      <button class="calc-btn btn-operator" data-key="+" onclick="handleOperator('+')">+</button>
+
+      <!-- Row 5: [+/-, 0, ., =] -->
+      <button class="calc-btn btn-number" data-key="toggle-sign" onclick="handleToggleSign()">+/−</button>
+      <button class="calc-btn btn-number" data-key="0" onclick="handleDigit('0')">0</button>
+      <button class="calc-btn btn-number" data-key="." onclick="handleDecimal()">.</button>
+      <button class="calc-btn btn-operator" data-key="enter" onclick="handleEquals()">=</button>
+    </div>
+  </div>
+
+  <script>
+    // State Variables
+    let currentValue = "0";
+    let previousValue = null;
+    let pendingOperator = null;
+    let waitingForNextOperand = false;
+    let calculationHistory = [];
+
+    // DOM Elements
+    const displayEl = document.getElementById("display");
+    const clearBtnEl = document.getElementById("clearBtn");
+    const historyDrawer = document.getElementById("historyDrawer");
+    const historyList = document.getElementById("historyList");
+
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // Dynamically adjust display font size based on string length
+    function updateDisplay() {
+      let formatted = currentValue;
+      
+      if (!isNaN(currentValue) && currentValue !== "" && !currentValue.includes("e") && currentValue.length <= 16) {
+        const parts = currentValue.split(".");
+        parts[0] = Number(parts[0]).toLocaleString("en-US", { maximumFractionDigits: 10 });
+        formatted = parts.join(".");
+      }
+
+      displayEl.innerText = formatted;
+
+      if (currentValue !== "0" || previousValue !== null) {
+        clearBtnEl.innerText = "C";
+      } else {
+        clearBtnEl.innerText = "AC";
+      }
+
+      adjustFontSize();
+      updateOperatorHighlight();
+    }
+
+    function adjustFontSize() {
+      const len = displayEl.innerText.length;
+      if (len > 13) {
+        displayEl.style.fontSize = "36px";
+      } else if (len > 10) {
+        displayEl.style.fontSize = "46px";
+      } else if (len > 7) {
+        displayEl.style.fontSize = "58px";
+      } else {
+        displayEl.style.fontSize = "72px";
+      }
+    }
+
+    function updateOperatorHighlight() {
+      document.querySelectorAll(".btn-operator").forEach(btn => {
+        const op = btn.getAttribute("data-key");
+        if (waitingForNextOperand && pendingOperator === op) {
+          btn.classList.add("selected");
+        } else {
+          btn.classList.remove("selected");
+        }
+      });
+    }
+
+    // --- Calculator Actions ---
+
+    function handleDigit(digit) {
+      triggerVisualPress(digit);
+      if (waitingForNextOperand) {
+        currentValue = digit;
+        waitingForNextOperand = false;
+      } else {
+        if (currentValue === "0") {
+          currentValue = digit;
+        } else if (currentValue.replace(/[^0-9]/g, "").length < 9) {
+          currentValue += digit;
+        }
+      }
+      updateDisplay();
+    }
+
+    function handleDecimal() {
+      triggerVisualPress(".");
+      if (waitingForNextOperand) {
+        currentValue = "0.";
+        waitingForNextOperand = false;
+      } else if (!currentValue.includes(".")) {
+        currentValue += ".";
+      }
+      updateDisplay();
+    }
+
+    function handleClear() {
+      triggerVisualPress("clear");
+      currentValue = "0";
+      previousValue = null;
+      pendingOperator = null;
+      waitingForNextOperand = false;
+      updateDisplay();
+    }
+
+    function handleBackspace() {
+      triggerVisualPress("backspace");
+      if (waitingForNextOperand) return;
+      
+      if (currentValue.length > 1) {
+        currentValue = currentValue.slice(0, -1);
+        if (currentValue === "-" || currentValue === "-0") currentValue = "0";
+      } else {
+        currentValue = "0";
+      }
+      updateDisplay();
+    }
+
+    function handleToggleSign() {
+      triggerVisualPress("toggle-sign");
+      if (currentValue !== "0") {
+        if (currentValue.startsWith("-")) {
+          currentValue = currentValue.substring(1);
+        } else {
+          currentValue = "-" + currentValue;
+        }
+        updateDisplay();
+      }
+    }
+
+    function handlePercent() {
+      triggerVisualPress("percent");
+      const val = parseFloat(currentValue);
+      if (!isNaN(val)) {
+        currentValue = String(val / 100);
+        updateDisplay();
+      }
+    }
+
+    function handleOperator(op) {
+      triggerVisualPress(op);
+      const inputVal = parseFloat(currentValue);
+
+      if (pendingOperator && waitingForNextOperand) {
+        pendingOperator = op;
+        updateDisplay();
+        return;
+      }
+
+      if (previousValue === null) {
+        previousValue = inputVal;
+      } else if (pendingOperator) {
+        const result = performCalculation(previousValue, inputVal, pendingOperator);
+        currentValue = String(result);
+        previousValue = result;
+        updateDisplay();
+      }
+
+      waitingForNextOperand = true;
+      pendingOperator = op;
+      updateDisplay();
+    }
+
+    function handleEquals() {
+      triggerVisualPress("enter");
+      if (pendingOperator === null || previousValue === null) return;
+
+      const inputVal = parseFloat(currentValue);
+      const result = performCalculation(previousValue, inputVal, pendingOperator);
+
+      addHistoryItem(previousValue, pendingOperator, inputVal, result);
+
+      currentValue = String(result);
+      previousValue = null;
+      pendingOperator = null;
+      waitingForNextOperand = true;
+      updateDisplay();
+    }
+
+    function performCalculation(a, b, op) {
+      let res = 0;
+      switch (op) {
+        case "+": res = a + b; break;
+        case "-": res = a - b; break;
+        case "*": res = a * b; break;
+        case "/": res = b !== 0 ? a / b : "Error"; break;
+        default: res = b;
+      }
+
+      if (typeof res === "number") {
+        return parseFloat(res.toFixed(10));
+      }
+      return res;
+    }
+
+    // --- History Log Drawer ---
+
+    function toggleHistory() {
+      historyDrawer.classList.toggle("open");
+    }
+
+    function addHistoryItem(a, op, b, result) {
+      const opSymbols = { "+": "+", "-": "−", "*": "×", "/": "÷" };
+      const expr = `${a} ${opSymbols[op] || op} ${b}`;
+      calculationHistory.unshift({ expr, result });
+      renderHistory();
+    }
+
+    function renderHistory() {
+      if (calculationHistory.length === 0) {
+        historyList.innerHTML = `<div class="text-center text-gray-500 my-auto text-sm">No calculations yet</div>`;
+        return;
+      }
+
+      historyList.innerHTML = calculationHistory.map(item => `
+        <div class="history-item">
+          <span class="expr">${item.expr} =</span>
+          <span class="res">${item.result}</span>
+        </div>
+      `).join("");
+    }
+
+    function clearHistory() {
+      calculationHistory = [];
+      renderHistory();
+    }
+
+    // --- Visual Press Feedback Helper ---
+
+    function triggerVisualPress(keyAttr) {
+      const targetBtn = document.querySelector(`[data-key="${keyAttr}"]`);
+      if (targetBtn) {
+        targetBtn.classList.add("active-press");
+        setTimeout(() => {
+          targetBtn.classList.remove("active-press");
+        }, 150);
+      }
+    }
+
+    // --- Physical Keyboard & Numpad Listeners ---
+
+    window.addEventListener("keydown", (e) => {
+      if (["Space", "ArrowUp", "ArrowDown"].includes(e.code)) {
+        e.preventDefault();
+      }
+
+      const key = e.key;
+
+      if (key >= "0" && key <= "9") {
+        handleDigit(key);
+      } else if (key === "." || key === ",") {
+        handleDecimal();
+      } else if (key === "+") {
+        handleOperator("+");
+      } else if (key === "-") {
+        handleOperator("-");
+      } else if (key === "*") {
+        handleOperator("*");
+      } else if (key === "/") {
+        e.preventDefault();
+        handleOperator("/");
+      } else if (key === "Enter" || key === "=") {
+        e.preventDefault();
+        handleEquals();
+      } else if (key === "Backspace") {
+        handleBackspace();
+      } else if (key === "Escape" || key.toLowerCase() === "c") {
+        handleClear();
+      } else if (key === "%") {
+        handlePercent();
+      }
+    });
+
+    // --- Touch Swipe Left/Right Gesture for Display Backspace ---
+
+    let touchStartX = 0;
+    const displayArea = document.getElementById("displayArea");
+
+    displayArea.addEventListener("touchstart", (e) => {
+      touchStartX = e.touches[0].clientX;
+    }, { passive: true });
+
+    displayArea.addEventListener("touchend", (e) => {
+      const touchEndX = e.changedTouches[0].clientX;
+      const diffX = touchEndX - touchStartX;
+
+      if (Math.abs(diffX) > 30) {
+        handleBackspace();
+      }
+    }, { passive: true });
+
+    updateDisplay();
+  </script>
+</body>
+</html>
